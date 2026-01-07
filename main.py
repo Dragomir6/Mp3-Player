@@ -6,6 +6,7 @@ import random
 import pickle
 import time
 
+# Încercăm să importăm mutagen pentru durată.
 try:
     from mutagen.mp3 import MP3
 
@@ -13,7 +14,7 @@ try:
 except ImportError:
     HAS_MUTAGEN = False
 
-
+# --- CONFIGURARE TEME ---
 THEMES = {
     "Dark Mode (Spotify)": {
         "bg": "#1e1e1e", "fg": "#ffffff", "btn": "#2d2d2d",
@@ -45,21 +46,24 @@ FONT_ICONS = ("Segoe UI Symbol", 14)
 class MusicPlayer:
     def __init__(self, root):
         self.root = root
-        self.root.title("Python MP3 Player - Loop Fix")
+        self.root.title("Python MP3 Player - Complet")
         self.root.geometry("750x650")
 
+        # --- SETUP AUDIO ---
         try:
             pygame.mixer.quit()
         except:
             pass
         pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
 
+        # Variabile
         self.paused = False
         self.current_song_index = 0
         self.is_looping = False
         self.is_shuffling = False
         self.song_length = 0
         self.is_dragging = False
+        self.sleep_timer_id = None  # ID pentru timer-ul de oprire
 
         self.main_playlist = []
         self.fav_playlist = []
@@ -88,7 +92,7 @@ class MusicPlayer:
         self.title_label.pack(pady=(15, 0))
         self.colored_labels.append(self.title_label)
 
-        # Timer
+        # Timer Melodie
         self.time_label = tk.Label(self.root, text="00:00 / 00:00", font=("Arial", 12, "bold"))
         self.time_label.pack(pady=(5, 10))
         self.colored_labels.append(self.time_label)
@@ -106,7 +110,7 @@ class MusicPlayer:
 
         self.tabs.add(self.tab1, text="🎵 Melodii")
         self.tabs.add(self.tab2, text="❤ Favorite")
-        self.tabs.add(self.tab3, text="💾 Playlist-uri")
+        self.tabs.add(self.tab3, text="💾 Playlist")
         self.tabs.bind("<<NotebookTabChanged>>", self.on_tab_change)
 
         # Listboxes
@@ -193,6 +197,7 @@ class MusicPlayer:
         menu = tk.Menu(self.root)
         self.root.config(menu=menu)
 
+        # Meniu Fișier
         file_menu = tk.Menu(menu, tearoff=0)
         menu.add_cascade(label="Fișier", menu=file_menu)
         file_menu.add_command(label="Adaugă Melodie", command=self.add_song)
@@ -201,10 +206,21 @@ class MusicPlayer:
         file_menu.add_command(label="Salvează Playlist", command=self.save_playlist_dialog)
         file_menu.add_command(label="Ieșire", command=self.root.quit)
 
+        # Meniu Teme
         theme_menu = tk.Menu(menu, tearoff=0)
-        menu.add_cascade(label="Teme", menu=theme_menu)
+        menu.add_cascade(label="🎨 Teme", menu=theme_menu)
         for t in THEMES.keys():
             theme_menu.add_command(label=t, command=lambda x=t: self.apply_theme(x))
+
+        # --- MENIUL CEAS (RESTITUIT) ---
+        sleep_menu = tk.Menu(menu, tearoff=0)
+        menu.add_cascade(label="⏰ Ceas", menu=sleep_menu)
+        sleep_menu.add_command(label="5 min", command=lambda: self.set_sleep_timer(5))
+        sleep_menu.add_command(label="10 min", command=lambda: self.set_sleep_timer(10))
+        sleep_menu.add_command(label="30 min", command=lambda: self.set_sleep_timer(30))
+        sleep_menu.add_command(label="60 min", command=lambda: self.set_sleep_timer(60))
+        sleep_menu.add_separator()
+        sleep_menu.add_command(label="Anulează", command=lambda: self.set_sleep_timer(0))
 
     def create_listbox(self, parent):
         return tk.Listbox(parent, width=60, height=10, bd=0, highlightthickness=0, font=FONT_MAIN, activestyle="none")
@@ -257,8 +273,6 @@ class MusicPlayer:
             self.progress_scale.config(to=self.song_length)
             self.progress_scale.set(0)
 
-            # FIX: Setăm loops=0 întotdeauna.
-            # Logica de repetare o facem în timer (Python), nu în Pygame.
             pygame.mixer.music.play(loops=0)
 
             self.current_song_index = index
@@ -289,7 +303,7 @@ class MusicPlayer:
             except:
                 pass
 
-    # --- AICI ESTE FIX-UL PENTRU LOOP ---
+    # --- TIMER LOGIC (LOOP FIX) ---
     def update_song_timer(self):
         if pygame.mixer.music.get_busy() and not self.paused and not self.is_dragging:
             current_val = self.progress_scale.get()
@@ -302,15 +316,11 @@ class MusicPlayer:
                 tot_sec = int(self.song_length % 60)
                 self.time_label.config(text=f"{cur_min:02}:{cur_sec:02} / {tot_min:02}:{tot_sec:02}")
 
-        # Verificăm dacă melodia s-a terminat
         elif not self.paused and self.active_playlist_data and self.song_length > 0:
-            # Dacă bara a ajuns la final
             if self.progress_scale.get() >= self.song_length - 1:
                 if self.is_looping:
-                    # Dacă LOOP e activ, reluăm aceeași melodie
                     self.play_song_at_index(self.current_song_index)
                 else:
-                    # Dacă nu, trecem la următoarea
                     self.next_song()
 
         self.root.after(1000, self.update_song_timer)
@@ -329,8 +339,6 @@ class MusicPlayer:
                 idx = random.randint(0, len(self.active_playlist_data) - 1)
             else:
                 idx = self.current_song_index + 1
-
-            # Verificăm să nu ieșim din listă
             if idx < len(self.active_playlist_data):
                 self.play_song_at_index(idx)
         except:
@@ -351,7 +359,6 @@ class MusicPlayer:
     def toggle_loop(self):
         self.is_looping = not self.is_looping
         self.update_toggle_color()
-        # Dacă userul activează loop în timp ce cântă, va avea efect la finalul melodiei
 
     def update_toggle_color(self):
         t = self.current_theme
@@ -421,6 +428,20 @@ class MusicPlayer:
             if messagebox.askyesno("Confirm", "Stergi?"):
                 os.remove(f"saved_playlists/{name}.dat")
                 self.refresh_saved_playlists()
+
+    # --- FUNCȚIE NOUĂ PENTRU TIMER ---
+    def set_sleep_timer(self, minutes):
+        if self.sleep_timer_id:
+            self.root.after_cancel(self.sleep_timer_id)
+
+        if minutes > 0:
+            # Transformăm minutele în milisecunde
+            self.sleep_timer_id = self.root.after(minutes * 60 * 1000, self.stop_music)
+            self.status_bar.config(text=f"Sleep timer setat: {minutes} min")
+            messagebox.showinfo("Sleep Timer", f"Muzica se va opri în {minutes} minute.")
+        else:
+            self.status_bar.config(text="Sleep timer anulat")
+            messagebox.showinfo("Sleep Timer", "Timer anulat.")
 
     def on_tab_change(self, event):
         idx = self.tabs.index(self.tabs.select())
