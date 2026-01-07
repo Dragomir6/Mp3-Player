@@ -36,7 +36,6 @@ THEMES = {
         "accent": "#d4ac0d", "list_bg": "#222222", "list_fg": "#f39c12",
         "fav": "#e67e22", "remove": "#c0392b"
     }
-
 }
 
 FONT_MAIN = ("Arial", 10)
@@ -46,8 +45,8 @@ FONT_ICONS = ("Segoe UI Symbol", 14)
 class MusicPlayer:
     def __init__(self, root):
         self.root = root
-        self.root.title("Python MP3 Player - Complet")
-        self.root.geometry("750x650")
+        self.root.title("Python MP3 Player - Final v4")
+        self.root.geometry("800x650")
 
         # --- SETUP AUDIO ---
         try:
@@ -63,7 +62,7 @@ class MusicPlayer:
         self.is_shuffling = False
         self.song_length = 0
         self.is_dragging = False
-        self.sleep_timer_id = None  # ID pentru timer-ul de oprire
+        self.sleep_timer_id = None
 
         self.main_playlist = []
         self.fav_playlist = []
@@ -92,7 +91,7 @@ class MusicPlayer:
         self.title_label.pack(pady=(15, 0))
         self.colored_labels.append(self.title_label)
 
-        # Timer Melodie
+        # Timer
         self.time_label = tk.Label(self.root, text="00:00 / 00:00", font=("Arial", 12, "bold"))
         self.time_label.pack(pady=(5, 10))
         self.colored_labels.append(self.time_label)
@@ -110,7 +109,7 @@ class MusicPlayer:
 
         self.tabs.add(self.tab1, text="🎵 Melodii")
         self.tabs.add(self.tab2, text="❤ Favorite")
-        self.tabs.add(self.tab3, text="💾 Playlist")
+        self.tabs.add(self.tab3, text="💾 Playlist-uri")
         self.tabs.bind("<<NotebookTabChanged>>", self.on_tab_change)
 
         # Listboxes
@@ -130,7 +129,8 @@ class MusicPlayer:
         load_btn.pack(side=tk.LEFT, padx=20)
         self.colored_buttons.append(load_btn)
 
-        del_btn = tk.Button(pl_btn_frame, text="Șterge", command=self.delete_saved_playlist, fg="red", bg="#222")
+        del_btn = tk.Button(pl_btn_frame, text="Șterge Playlist-ul", command=self.delete_saved_playlist, fg="red",
+                            bg="#222")
         del_btn.pack(side=tk.RIGHT, padx=20)
 
         self.active_listbox_widget = self.main_listbox
@@ -159,10 +159,13 @@ class MusicPlayer:
         self.btns_frame.pack(side=tk.TOP)
         self.colored_frames.append(self.btns_frame)
 
-        btn_conf = {"bd": 0, "relief": tk.FLAT, "font": FONT_ICONS, "width": 5, "cursor": "hand2"}
+        btn_conf = {"bd": 0, "relief": tk.FLAT, "font": FONT_ICONS, "width": 4, "cursor": "hand2"}
 
         self.fav_add_btn = tk.Button(self.btns_frame, text="❤", command=self.add_to_favorites, **btn_conf)
         self.fav_remove_btn = tk.Button(self.btns_frame, text="💔", command=self.remove_from_favorites, **btn_conf)
+
+        self.del_song_btn = tk.Button(self.btns_frame, text="🗑", command=self.remove_selected_song, **btn_conf)
+
         self.shuffle_btn = tk.Button(self.btns_frame, text="🔀", command=self.toggle_shuffle, **btn_conf)
         self.prev_btn = tk.Button(self.btns_frame, text="⏮", command=self.prev_song, **btn_conf)
         self.play_btn = tk.Button(self.btns_frame, text="▶", command=self.play_music, **btn_conf)
@@ -173,18 +176,21 @@ class MusicPlayer:
         # Lista butoane colorate
         self.colored_buttons.extend([
             self.prev_btn, self.stop_btn, self.next_btn,
-            self.fav_add_btn, self.fav_remove_btn,
+            self.fav_add_btn, self.fav_remove_btn, self.del_song_btn,
             self.shuffle_btn, self.loop_btn
         ])
 
+        # Grid Layout
         self.fav_add_btn.grid(row=0, column=0, padx=2)
         self.fav_remove_btn.grid(row=0, column=1, padx=2)
-        self.shuffle_btn.grid(row=0, column=2, padx=5)
-        self.prev_btn.grid(row=0, column=3, padx=5)
-        self.play_btn.grid(row=0, column=4, padx=5)
-        self.stop_btn.grid(row=0, column=5, padx=5)
-        self.next_btn.grid(row=0, column=6, padx=5)
-        self.loop_btn.grid(row=0, column=7, padx=5)
+        self.del_song_btn.grid(row=0, column=2, padx=10)
+
+        self.shuffle_btn.grid(row=0, column=3, padx=5)
+        self.prev_btn.grid(row=0, column=4, padx=5)
+        self.play_btn.grid(row=0, column=5, padx=5)
+        self.stop_btn.grid(row=0, column=6, padx=5)
+        self.next_btn.grid(row=0, column=7, padx=5)
+        self.loop_btn.grid(row=0, column=8, padx=5)
 
         # Status Bar
         self.status_bar = tk.Label(self.root, text="Ready", bd=0, relief=tk.FLAT, anchor=tk.W, font=("Arial", 9),
@@ -197,22 +203,18 @@ class MusicPlayer:
         menu = tk.Menu(self.root)
         self.root.config(menu=menu)
 
-        # Meniu Fișier
         file_menu = tk.Menu(menu, tearoff=0)
         menu.add_cascade(label="Fișier", menu=file_menu)
-        file_menu.add_command(label="Adaugă Melodie", command=self.add_song)
-        file_menu.add_command(label="Adaugă Folder", command=self.add_many_songs)
+        file_menu.add_command(label="Adaugă Melodii", command=self.add_many_songs)
         file_menu.add_separator()
         file_menu.add_command(label="Salvează Playlist", command=self.save_playlist_dialog)
         file_menu.add_command(label="Ieșire", command=self.root.quit)
 
-        # Meniu Teme
         theme_menu = tk.Menu(menu, tearoff=0)
         menu.add_cascade(label="🎨 Teme", menu=theme_menu)
         for t in THEMES.keys():
             theme_menu.add_command(label=t, command=lambda x=t: self.apply_theme(x))
 
-        # --- MENIUL CEAS (RESTITUIT) ---
         sleep_menu = tk.Menu(menu, tearoff=0)
         menu.add_cascade(label="⏰ Ceas", menu=sleep_menu)
         sleep_menu.add_command(label="5 min", command=lambda: self.set_sleep_timer(5))
@@ -224,6 +226,42 @@ class MusicPlayer:
 
     def create_listbox(self, parent):
         return tk.Listbox(parent, width=60, height=10, bd=0, highlightthickness=0, font=FONT_MAIN, activestyle="none")
+
+    def remove_selected_song(self):
+        try:
+            current_tab = self.tabs.index(self.tabs.select())
+
+            if current_tab == 0:
+                target_list = self.main_playlist
+                target_box = self.main_listbox
+            elif current_tab == 1:
+                target_list = self.fav_playlist
+                target_box = self.fav_listbox
+            else:
+                messagebox.showwarning("Info", "Selectează o melodie din tab-ul Melodii sau Favorite.")
+                return
+
+            selection = target_box.curselection()
+            if not selection:
+                messagebox.showwarning("Info", "Selectează o melodie de șters!")
+                return
+
+            index = selection[0]
+            is_active_list = (self.active_playlist_data == target_list)
+
+            if is_active_list and index == self.current_song_index:
+                self.stop_music()
+
+            del target_list[index]
+            target_box.delete(index)
+
+            if is_active_list and index < self.current_song_index:
+                self.current_song_index -= 1
+
+            self.status_bar.config(text="Melodie ștearsă.")
+
+        except Exception as e:
+            print(f"Eroare ștergere: {e}")
 
     def play_music(self):
         try:
@@ -303,7 +341,6 @@ class MusicPlayer:
             except:
                 pass
 
-    # --- TIMER LOGIC (LOOP FIX) ---
     def update_song_timer(self):
         if pygame.mixer.music.get_busy() and not self.paused and not self.is_dragging:
             current_val = self.progress_scale.get()
@@ -339,8 +376,13 @@ class MusicPlayer:
                 idx = random.randint(0, len(self.active_playlist_data) - 1)
             else:
                 idx = self.current_song_index + 1
-            if idx < len(self.active_playlist_data):
-                self.play_song_at_index(idx)
+
+            # --- MODIFICARE AICI: Resetăm indexul la 0 dacă depășește lungimea ---
+            if idx >= len(self.active_playlist_data):
+                idx = 0
+            # ---------------------------------------------------------------------
+
+            self.play_song_at_index(idx)
         except:
             pass
 
@@ -429,13 +471,10 @@ class MusicPlayer:
                 os.remove(f"saved_playlists/{name}.dat")
                 self.refresh_saved_playlists()
 
-    # --- FUNCȚIE NOUĂ PENTRU TIMER ---
     def set_sleep_timer(self, minutes):
         if self.sleep_timer_id:
             self.root.after_cancel(self.sleep_timer_id)
-
         if minutes > 0:
-            # Transformăm minutele în milisecunde
             self.sleep_timer_id = self.root.after(minutes * 60 * 1000, self.stop_music)
             self.status_bar.config(text=f"Sleep timer setat: {minutes} min")
             messagebox.showinfo("Sleep Timer", f"Muzica se va opri în {minutes} minute.")
