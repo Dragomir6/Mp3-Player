@@ -3,77 +3,147 @@ from tkinter import filedialog
 import pygame
 import os
 
+# --- CULORI ȘI STILURI (CONFIG) ---
+COLOR_BG = "#1e1e1e"  # Background general
+COLOR_FG = "#ffffff"  # Text principal
+COLOR_BTN = "#2d2d2d"  # Background butoane
+COLOR_BTN_HOVER = "#3e3e3e"  # Hover (simulat prin activebackground)
+COLOR_ACCENT = "#1db954"  # Verde tip "Spotify" pentru Play/Listbox
+COLOR_LISTBOX = "#121212"  # Background playlist
+FONT_MAIN = ("Arial", 10)
+FONT_BOLD = ("Arial", 10, "bold")
+FONT_ICONS = ("Arial", 14)  # Font mai mare pentru simboluri
+
 
 class MusicPlayer:
     def __init__(self, root):
         self.root = root
-        self.root.title("Python MP3 Player - Group Project")
-        self.root.geometry("500x400")
+        self.root.title("Python MP3 Player - Modern UI")
+        self.root.geometry("600x450")
+        self.root.configure(bg=COLOR_BG)  # Setare culoare fundal fereastră
 
         # --- STUDENT 1: Audio Setup ---
-        # Initialize Pygame Mixer
         pygame.mixer.init()
-        # State variables
         self.paused = False
         self.current_song_index = 0
         self.playlist = []
 
+        # --- HEADER (Titlu) ---
+        title_label = tk.Label(root, text="My Music Library", bg=COLOR_BG, fg=COLOR_FG,
+                               font=("Arial", 16, "bold"))
+        title_label.pack(pady=15)
+
         # --- STUDENT 2: GUI - Song List ---
-        # Frame for the playlist
-        self.playlist_box = tk.Listbox(root, bg="black", fg="white", width=60, selectbackground="gray",
-                                       selectforeground="black")
-        self.playlist_box.pack(pady=20)
+        # Frame container pentru playlist ca să adăugăm un border subtil
+        list_frame = tk.Frame(root, bg=COLOR_BG)
+        list_frame.pack(pady=5, padx=20, fill=tk.BOTH, expand=True)
 
-        # --- STUDENT 2: GUI - Buttons & Slider ---
-        # Control Frame
-        controls_frame = tk.Frame(root)
-        controls_frame.pack()
+        self.playlist_box = tk.Listbox(
+            list_frame,
+            bg=COLOR_LISTBOX,
+            fg=COLOR_FG,
+            width=60,
+            height=12,
+            selectbackground=COLOR_ACCENT,
+            selectforeground="white",
+            bd=0,  # Fără border clasic
+            highlightthickness=0,  # Fără highlight border la focus
+            font=FONT_MAIN,
+            activestyle="none"  # Elimină sublinierea elementului activ
+        )
+        self.playlist_box.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        # Button Images (using text for simplicity, but images can be added here)
-        play_btn = tk.Button(controls_frame, text="PLAY", command=self.play_music, width=10)
-        pause_btn = tk.Button(controls_frame, text="PAUSE", command=self.pause_music, width=10)
-        stop_btn = tk.Button(controls_frame, text="STOP", command=self.stop_music, width=10)
+        # --- CONTROL AREA ---
+        # Un frame dedicat pentru controale jos
+        control_area = tk.Frame(root, bg=COLOR_BG)
+        control_area.pack(pady=20, fill=tk.X)
 
-        # Grid layout for buttons
-        play_btn.grid(row=0, column=1, padx=10)
-        pause_btn.grid(row=0, column=2, padx=10)
-        stop_btn.grid(row=0, column=3, padx=10)
+        # 1. Slider Volum (Mutat deasupra butoanelor pentru simetrie)
+        self.volume_slider = tk.Scale(
+            control_area,
+            from_=0, to=1,
+            resolution=0.1,
+            orient=tk.HORIZONTAL,
+            bg=COLOR_BG,
+            fg=COLOR_FG,
+            troughcolor=COLOR_BTN,
+            highlightthickness=0,
+            bd=0,
+            showvalue=0,  # Ascundem numerele, lăsăm doar slider-ul
+            command=self.set_volume,
+            length=150,
+            label="Volume"
+        )
+        self.volume_slider.set(0.5)
+        self.volume_slider.pack(side=tk.RIGHT, padx=20)
 
-        # Volume Slider (Student 2)
-        self.volume_slider = tk.Scale(root, from_=0, to=1, resolution=0.1, orient=tk.HORIZONTAL, label="Volume",
-                                      command=self.set_volume)
-        self.volume_slider.set(0.5)  # Default 50%
-        self.volume_slider.pack(pady=10)
+        # 2. Butoane (Centrate)
+        # Folosim un frame interior pentru a centra butoanele
+        btns_frame = tk.Frame(control_area, bg=COLOR_BG)
+        btns_frame.pack(side=tk.TOP)
 
-        # --- STUDENT 3: Playlist Management ---
-        # Navigation Buttons
-        prev_btn = tk.Button(controls_frame, text="<< PREV", command=self.prev_song, width=10)
-        next_btn = tk.Button(controls_frame, text="NEXT >>", command=self.next_song, width=10)
+        # Dicționar pentru stilul comun al butoanelor
+        btn_style = {
+            "bg": COLOR_BTN,
+            "fg": COLOR_FG,
+            "activebackground": COLOR_ACCENT,
+            "activeforeground": "white",
+            "bd": 0,
+            "relief": tk.FLAT,
+            "font": FONT_ICONS,
+            "width": 4,
+            "cursor": "hand2"
+        }
 
-        prev_btn.grid(row=0, column=0, padx=10)
-        next_btn.grid(row=0, column=4, padx=10)
+        # Definiție butoane cu simboluri Unicode
+        # STUDENT 3 (Prev/Next) & STUDENT 2 (Play/Pause/Stop)
+        self.prev_btn = tk.Button(btns_frame, text="⏮", command=self.prev_song, **btn_style)
+        self.play_btn = tk.Button(btns_frame, text="▶", command=self.play_music, **btn_style)
+        self.pause_btn = tk.Button(btns_frame, text="⏸", command=self.pause_music, **btn_style)
+        self.stop_btn = tk.Button(btns_frame, text="⏹", command=self.stop_music, **btn_style)
+        self.next_btn = tk.Button(btns_frame, text="⏭", command=self.next_song, **btn_style)
 
-        # Menu to add songs
+        # Butonul PLAY îl facem puțin diferit (accentuat)
+        self.play_btn.config(bg=COLOR_ACCENT, fg="white", activebackground="#1ed760")
+
+        # Grid Layout pentru butoane
+        self.prev_btn.grid(row=0, column=0, padx=5)
+        self.play_btn.grid(row=0, column=1, padx=5)
+        self.pause_btn.grid(row=0, column=2, padx=5)
+        self.stop_btn.grid(row=0, column=3, padx=5)
+        self.next_btn.grid(row=0, column=4, padx=5)
+
+        # --- MENIU (Student 3) ---
+        # Modificăm meniul să arate standard, dar funcționalitatea rămâne
         menu = tk.Menu(root)
         root.config(menu=menu)
-        add_song_menu = tk.Menu(menu)
-        menu.add_cascade(label="Add Songs", menu=add_song_menu)
+        add_song_menu = tk.Menu(menu, tearoff=0)
+        menu.add_cascade(label="File", menu=add_song_menu)
         add_song_menu.add_command(label="Add One Song", command=self.add_song)
         add_song_menu.add_command(label="Add Many Songs", command=self.add_many_songs)
+        add_song_menu.add_separator()
+        add_song_menu.add_command(label="Exit", command=root.quit)
 
-        # --- STUDENT 4: Status/Extras ---
-        # Status Bar
-        self.status_bar = tk.Label(root, text="Welcome to Music Player", bd=1, relief=tk.SUNKEN, anchor=tk.E)
-        self.status_bar.pack(fill=tk.X, side=tk.BOTTOM, ipady=2)
+        # --- STUDENT 4: Status Bar ---
+        self.status_bar = tk.Label(
+            root,
+            text="Welcome to Music Player",
+            bd=0,
+            relief=tk.FLAT,
+            anchor=tk.W,
+            bg=COLOR_BTN,
+            fg="#aaaaaa",
+            font=("Arial", 8),
+            padx=10
+        )
+        self.status_bar.pack(fill=tk.X, side=tk.BOTTOM, ipady=5)
 
-    # --- FUNCTIONS ---
+    # --- FUNCTIONS (Neschimbate ca logică, doar mici update-uri UI) ---
 
-    # Student 3 Functionality
     def add_song(self):
         song = filedialog.askopenfilename(initialdir='audio/', title="Choose A Song",
                                           filetypes=(("mp3 Files", "*.mp3"),))
         if song:
-            # Strip out the directory info to show just the name
             song_name = os.path.basename(song)
             self.playlist.append(song)
             self.playlist_box.insert(tk.END, song_name)
@@ -86,17 +156,14 @@ class MusicPlayer:
             self.playlist.append(song)
             self.playlist_box.insert(tk.END, song_name)
 
-    # Student 1 Functionality
     def play_music(self):
         try:
-            # If paused, unpause
             if self.paused:
                 pygame.mixer.music.unpause()
                 self.paused = False
-                self.status_bar.config(text="Playing...")
+                self.status_bar.config(text="Status: Playing...")
                 return
 
-            # Get selected song index
             selection = self.playlist_box.curselection()
             if selection:
                 index = selection[0]
@@ -104,63 +171,85 @@ class MusicPlayer:
             else:
                 index = self.current_song_index
 
-            song_path = self.playlist[index]
+            if index < len(self.playlist):
+                song_path = self.playlist[index]
+                pygame.mixer.music.load(song_path)
+                pygame.mixer.music.play(loops=0)
 
-            pygame.mixer.music.load(song_path)
-            pygame.mixer.music.play(loops=0)
-            self.status_bar.config(text=f"Playing: {os.path.basename(song_path)}")
+                # Actualizare sumară a UI
+                song_name = os.path.basename(song_path)
+                self.status_bar.config(text=f"Now Playing: {song_name}")
+                self.play_btn.config(text="▶")  # Reset icon just in case
+            else:
+                self.status_bar.config(text="Playlist empty or no song selected")
+
         except Exception as e:
-            print("Select a song first!")
+            print(e)
+            self.status_bar.config(text="Error: Select a song first!")
 
     def pause_music(self):
         pygame.mixer.music.pause()
         self.paused = True
-        self.status_bar.config(text="Paused")
+        self.status_bar.config(text="Status: Paused")
 
     def stop_music(self):
         pygame.mixer.music.stop()
-        self.playlist_box.selection_clear(tk.ACTIVE)
-        self.status_bar.config(text="Stopped")
+        self.playlist_box.selection_clear(0, tk.END)
+        self.status_bar.config(text="Status: Stopped")
 
     def set_volume(self, val):
         volume = float(val)
         pygame.mixer.music.set_volume(volume)
 
-    # Student 3 Functionality (Navigation)
     def next_song(self):
         try:
-            next_one = self.playlist_box.curselection()[0] + 1
-            song_path = self.playlist[next_one]
+            current_selection = self.playlist_box.curselection()
+            if current_selection:
+                next_one = current_selection[0] + 1
+            else:
+                next_one = self.current_song_index + 1
 
-            pygame.mixer.music.load(song_path)
-            pygame.mixer.music.play(loops=0)
+            if next_one < len(self.playlist):
+                song_path = self.playlist[next_one]
+                pygame.mixer.music.load(song_path)
+                pygame.mixer.music.play(loops=0)
 
-            # Move selection bar
-            self.playlist_box.selection_clear(0, tk.END)
-            self.playlist_box.activate(next_one)
-            self.playlist_box.selection_set(next_one, last=None)
-            self.current_song_index = next_one
-        except:
-            self.status_bar.config(text="End of Playlist")
+                self.playlist_box.selection_clear(0, tk.END)
+                self.playlist_box.activate(next_one)
+                self.playlist_box.selection_set(next_one, last=None)
+                self.current_song_index = next_one
+
+                self.status_bar.config(text=f"Now Playing: {os.path.basename(song_path)}")
+            else:
+                self.status_bar.config(text="End of Playlist")
+        except Exception:
+            self.status_bar.config(text="Error playing next song")
 
     def prev_song(self):
         try:
-            prev_one = self.playlist_box.curselection()[0] - 1
-            song_path = self.playlist[prev_one]
+            current_selection = self.playlist_box.curselection()
+            if current_selection:
+                prev_one = current_selection[0] - 1
+            else:
+                prev_one = self.current_song_index - 1
 
-            pygame.mixer.music.load(song_path)
-            pygame.mixer.music.play(loops=0)
+            if prev_one >= 0:
+                song_path = self.playlist[prev_one]
+                pygame.mixer.music.load(song_path)
+                pygame.mixer.music.play(loops=0)
 
-            # Move selection bar
-            self.playlist_box.selection_clear(0, tk.END)
-            self.playlist_box.activate(prev_one)
-            self.playlist_box.selection_set(prev_one, last=None)
-            self.current_song_index = prev_one
-        except:
-            self.status_bar.config(text="Start of Playlist")
+                self.playlist_box.selection_clear(0, tk.END)
+                self.playlist_box.activate(prev_one)
+                self.playlist_box.selection_set(prev_one, last=None)
+                self.current_song_index = prev_one
+
+                self.status_bar.config(text=f"Now Playing: {os.path.basename(song_path)}")
+            else:
+                self.status_bar.config(text="Start of Playlist")
+        except Exception:
+            self.status_bar.config(text="Error playing previous song")
 
 
-# Run the App
 if __name__ == "__main__":
     root = tk.Tk()
     app = MusicPlayer(root)
